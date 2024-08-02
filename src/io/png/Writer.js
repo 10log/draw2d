@@ -1,5 +1,5 @@
 import draw2d from '../../packages'
-import { Canvg } from 'canvg';
+const canvg = require("canvg-browser");
 
 /**
  * @class
@@ -87,7 +87,7 @@ draw2d.io.png.Writer = draw2d.io.Writer.extend(
       fullSizeCanvas.width = canvas.initialWidth
       fullSizeCanvas.height = canvas.initialHeight
 
-      Canvg("canvas_png_export_for_draw2d", svg, {
+      canvg("canvas_png_export_for_draw2d", svg, {
         ignoreMouse: true,
         ignoreAnimation: true,
         renderCallback: function () {
