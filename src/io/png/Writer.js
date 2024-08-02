@@ -1,5 +1,5 @@
 import draw2d from '../../packages'
-import Canvg from 'canvg';
+import { Canvg } from 'canvg';
 
 /**
  * @class
