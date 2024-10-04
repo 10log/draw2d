@@ -87,43 +87,46 @@ draw2d.io.png.Writer = draw2d.io.Writer.extend(
       fullSizeCanvas.width = canvas.initialWidth
       fullSizeCanvas.height = canvas.initialHeight
 
-      Canvg("canvas_png_export_for_draw2d", svg, {
-        ignoreMouse: true,
-        ignoreAnimation: true,
-        renderCallback: function () {
-          try {
-            if (canvas instanceof draw2d.Canvas) {
-              if(canvasState) {
-                canvas.setZoom(canvasState.zoom)
-                canvas.setScrollLeft(canvasState.scrollLeft)
-                canvas.setScrollTop(canvasState.scrollTop)
+      document.addEventListener('DOMContentLoaded', function() {
+        let ctx = fullSizeCanvas.getContext('2d');
+        Canvg.fromString(ctx, svg, {
+          ignoreMouse: true,
+          ignoreAnimation: true,
+          renderCallback: function () {
+            try {
+              if (canvas instanceof draw2d.Canvas) {
+                if(canvasState) {
+                  canvas.setZoom(canvasState.zoom)
+                  canvas.setScrollLeft(canvasState.scrollLeft)
+                  canvas.setScrollTop(canvasState.scrollTop)
+                }
+                canvas.showDecoration();
               }
-              canvas.showDecoration();
+
+              if (typeof cropBoundingBox !== "undefined") {
+                let sourceX = cropBoundingBox.x
+                let sourceY = cropBoundingBox.y
+                let sourceWidth = cropBoundingBox.w
+                let sourceHeight = cropBoundingBox.h
+
+                let croppedCanvas = document.createElement('canvas')
+                croppedCanvas.width = sourceWidth
+                croppedCanvas.height = sourceHeight
+
+                croppedCanvas.getContext("2d").drawImage(fullSizeCanvas, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight);
+
+                let dataUrl = croppedCanvas.toDataURL("image/png")
+                let base64Image = dataUrl.replace("data:image/png;base64,", "")
+                resultCallback(dataUrl, base64Image)
+              } else {
+                let img = fullSizeCanvas.toDataURL("image/png")
+                resultCallback(img, img.replace("data:image/png;base64,", ""))
+              }
+            } finally {
+              canvasDomNode.remove()
             }
-
-            if (typeof cropBoundingBox !== "undefined") {
-              let sourceX = cropBoundingBox.x
-              let sourceY = cropBoundingBox.y
-              let sourceWidth = cropBoundingBox.w
-              let sourceHeight = cropBoundingBox.h
-
-              let croppedCanvas = document.createElement('canvas')
-              croppedCanvas.width = sourceWidth
-              croppedCanvas.height = sourceHeight
-
-              croppedCanvas.getContext("2d").drawImage(fullSizeCanvas, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight);
-
-              let dataUrl = croppedCanvas.toDataURL("image/png")
-              let base64Image = dataUrl.replace("data:image/png;base64,", "")
-              resultCallback(dataUrl, base64Image)
-            } else {
-              let img = fullSizeCanvas.toDataURL("image/png")
-              resultCallback(img, img.replace("data:image/png;base64,", ""))
-            }
-          } finally {
-            canvasDomNode.remove()
           }
-        }
+        })
       })
     }
   })
