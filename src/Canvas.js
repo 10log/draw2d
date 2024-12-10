@@ -921,12 +921,15 @@ draw2d.Canvas = Class.extend(
       // this is only required if the used router requires the crossing information
       // of the connections
       if (figure instanceof draw2d.shape.basic.PolyLine) {
-        this.calculateConnectionIntersection()
-        this.linesToRepaintAfterDragDrop.each((i, line) => {
-          line.svgPathString = null
-          line.repaint()
-        })
-        this.linesToRepaintAfterDragDrop = new draw2d.util.ArrayList()
+        let router = figure.getRouter()
+        if (router instanceof draw2d.layout.connection.CircuitConnectionRouter || router instanceof draw2d.layout.connection.ManhattanBridgedConnectionRouter) {
+          this.calculateConnectionIntersection()
+          this.linesToRepaintAfterDragDrop.each(function (i, line) {
+            line.svgPathString = null
+            line.repaint()
+          })
+          this.linesToRepaintAfterDragDrop = new draw2d.util.ArrayList()
+        }
       }
 
       return this

@@ -103,7 +103,7 @@ draw2d.SetFigure = draw2d.shape.basic.Rectangle.extend(
 
     attributes ??= {}
 
-    this.applyAlpha()
+    // this.applyAlpha()
 
     this._super(attributes)
   },

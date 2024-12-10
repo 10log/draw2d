@@ -122,6 +122,8 @@ draw2d.command.CommandReconnect = draw2d.command.Command.extend(
   redo: function () {
     this.con.setSource(this.newSourcePort)
     this.con.setTarget(this.newTargetPort)
+    this.newSourcePort.onConnect(this.con)
+    this.newTargetPort.onConnect(this.con)
     // force a routing of the connection and DON'T set the old reouter again because this reset all manual added
     // vertices
     this.con.routingRequired = true
