@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "module": "commonjs",
+    "declaration": true,
+    "outDir": "./lib",
+    "strict": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "draw2d": ["types/index.d.ts"],
+      "draw2d/core": ["types/core/index.d.ts"],
+      "draw2d/core/*": ["types/core/*"],
+      "draw2d/decoration": ["types/decoration/index.d.ts"],
+      "draw2d/decoration/*": ["types/decoration/*"],
+      "draw2d/shape": ["types/shape/index.d.ts"],
+      "draw2d/shape/basic": ["types/shape/basic.d.ts"],
+      "draw2d/shape/node": ["types/shape/node.d.ts"],
+      "draw2d/shape/flowchart": ["types/shape/flowchart.d.ts"],
+      "draw2d/shape/*": ["types/shape/*"],
+      "draw2d/geo": ["types/geo/index.d.ts"],
+      "draw2d/geo/*": ["types/geo/*"],
+      "draw2d/policy": ["types/policy/index.d.ts"],
+      "draw2d/policy/*": ["types/policy/*"],
+      "draw2d/layout": ["types/layout/index.d.ts"],
+      "draw2d/layout/*": ["types/layout/*"],
+      "draw2d/command": ["types/command/index.d.ts"],
+      "draw2d/command/*": ["types/command/*"],
+      "draw2d/io": ["types/io/index.d.ts"],
+      "draw2d/io/*": ["types/io/*"],
+      "draw2d/util": ["types/util/index.d.ts"],
+      "draw2d/util/*": ["types/util/*"],
+      "draw2d/ui": ["types/ui/index.d.ts"],
+      "draw2d/ui/*": ["types/ui/*"]
+    }
+  },
+  "include": ["types/**/*"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
+}
