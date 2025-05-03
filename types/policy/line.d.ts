@@ -1,31 +1,44 @@
 import { Figure } from '../core/figure';
 import { Connection } from '../core/connection';
+import { Canvas } from '../core/canvas';
 import { AbstractPolicy } from './editpolicy';
+import { SelectionFeedbackPolicy } from './figure';
 
 /**
  * Base class for line selection feedback policies
  *
  * These policies define how a selected connection is visually highlighted
  */
-export class LineSelectionFeedbackPolicy extends AbstractPolicy {
+export class LineSelectionFeedbackPolicy extends SelectionFeedbackPolicy {
   /**
    * Creates a new line selection feedback policy
    */
-  constructor();
+  constructor(attr?: any, setter?: any, getter?: any);
 
   /**
    * Called by the framework if the related line has been selected
    *
-   * @param connection The selected connection
+   * @param canvas The canvas where the selection occurs
+   * @param figure The selected connection
+   * @param isPrimarySelection True if this is the primary selection
    */
-  onSelect(connection: Connection): void;
+  onSelect(canvas: Canvas, figure: Connection, isPrimarySelection: boolean): void;
+
+  /**
+   * Called if the figure has been moved
+   *
+   * @param canvas The canvas containing the figure
+   * @param figure The figure that has been moved
+   */
+  moved(canvas: Canvas, figure: Connection): void;
 
   /**
    * Called by the framework if the related line has been unselected
    *
-   * @param connection The unselected connection
+   * @param canvas The canvas where the deselection occurs
+   * @param figure The unselected connection
    */
-  onUnselect(connection: Connection): void;
+  onUnselect(canvas: Canvas, figure: Connection): void;
 }
 
 /**
@@ -35,7 +48,7 @@ export class VertexSelectionFeedbackPolicy extends LineSelectionFeedbackPolicy {
   /**
    * Creates a new vertex selection feedback policy
    */
-  constructor();
+  constructor(attr?: any, setter?: any, getter?: any);
 
   /**
    * Selection handles for the vertices
@@ -46,9 +59,11 @@ export class VertexSelectionFeedbackPolicy extends LineSelectionFeedbackPolicy {
   /**
    * Called by the framework if the related line has been selected
    *
-   * @param connection The selected connection
+   * @param canvas The canvas where the selection occurs
+   * @param figure The selected connection
+   * @param isPrimarySelection True if this is the primary selection
    */
-  onSelect(connection: Connection): void;
+  onSelect(canvas: Canvas, figure: Connection, isPrimarySelection: boolean): void;
 
   /**
    * Called if a user moves a selection handle
@@ -70,9 +85,10 @@ export class VertexSelectionFeedbackPolicy extends LineSelectionFeedbackPolicy {
   /**
    * Called by the framework if the related line has been unselected
    *
-   * @param connection The unselected connection
+   * @param canvas The canvas where the deselection occurs
+   * @param figure The unselected connection
    */
-  onUnselect(connection: Connection): void;
+  onUnselect(canvas: Canvas, figure: Connection): void;
 }
 
 /**
@@ -83,12 +99,14 @@ export class OrthogonalSelectionFeedbackPolicy extends VertexSelectionFeedbackPo
   /**
    * Creates a new orthogonal selection feedback policy
    */
-  constructor();
+  constructor(attr?: any, setter?: any, getter?: any);
 
   /**
    * Called by the framework if the related line has been selected
    *
-   * @param connection The selected connection
+   * @param canvas The canvas where the selection occurs
+   * @param figure The selected connection
+   * @param isPrimarySelection True if this is the primary selection
    */
-  onSelect(connection: Connection): void;
+  onSelect(canvas: Canvas, figure: Connection, isPrimarySelection: boolean): void;
 }
