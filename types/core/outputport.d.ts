@@ -25,4 +25,11 @@ export class OutputPort extends Port {
    * @returns The cloned port
    */
   clone(cloneMetaData?: any): OutputPort;
+  
+  /**
+   * Creates a command for the specified request
+   * @param request The request to create a command for
+   * @returns The command or null
+   */
+  createCommand(request: any): any;
 }

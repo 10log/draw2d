@@ -12,6 +12,9 @@ export class HybridPort extends Port {
    * @param getter Custom getters for the properties
    */
   constructor(attr?: any, setter?: any, getter?: any);
+  
+  /** The max number of incomming connections for this port */
+  maxFanIn: number;
 
   /**
    * Returns the locator of this port.
@@ -25,4 +28,24 @@ export class HybridPort extends Port {
    * @returns The cloned port
    */
   clone(cloneMetaData?: any): HybridPort;
+  
+  /**
+   * Set the maximal possible count of incomming connections for this port
+   * @param count The maximal number of incomming connections
+   * @returns this
+   */
+  setMaxFanIn(count: number): this;
+  
+  /**
+   * Return the maximal possible incomming connections for this port
+   * @returns The maximum number of incomming connections
+   */
+  getMaxFanIn(): number;
+  
+  /**
+   * Creates a command for the specified request
+   * @param request The request to create a command for
+   * @returns The command or null
+   */
+  createCommand(request: any): any;
 }
