@@ -39,3 +39,5 @@ out
 venv
 dist
 docs
+
+**/.claude/settings.local.json

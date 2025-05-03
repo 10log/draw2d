@@ -5,6 +5,10 @@ import { ConnectionRouter } from '../layout/connection/connectionrouter';
 import { Decorator } from '../decoration/connection/decorator';
 import { Raphael } from '../../src/lib/raphael.exec';
 import { Canvas } from './canvas';
+import { Figure } from './figure';
+import { ConnectionLocator } from '../layout/locator/connectionlocator';
+import { ArrayList } from '../util/arraylist';
+import { CommandType } from '../command/commandtype';
 
 /**
  * Connections figures are used to display a line between two points.
@@ -20,7 +24,28 @@ export class Connection extends PolyLine {
    * @param setter Custom setters for attributes
    * @param getter Custom getters for attributes
    */
-  constructor(attr?: any, setter?: any, getter?: any);
+  constructor(attr?: {
+    color?: string;
+    stroke?: number;
+    radius?: number;
+    sourceDecorator?: Decorator;
+    targetDecorator?: Decorator;
+    source?: Port;
+    target?: Port;
+    [key: string]: any;
+  }, setter?: {
+    sourceDecorator?: (decorator: Decorator) => Connection;
+    targetDecorator?: (decorator: Decorator) => Connection;
+    source?: (port: Port) => Connection;
+    target?: (port: Port) => Connection;
+    [key: string]: any;
+  }, getter?: {
+    sourceDecorator?: () => Decorator;
+    targetDecorator?: () => Decorator;
+    source?: () => Port;
+    target?: () => Port;
+    [key: string]: any;
+  });
 
   /** Source port of the connection */
   sourcePort: Port | null;
@@ -70,12 +95,12 @@ export class Connection extends PolyLine {
 
   /**
    * Add a child figure to the connection
-   * @param child Figure to add
-   * @param locator Locator for positioning
+   * @param child Figure to add as decoration to the connection
+   * @param locator ConnectionLocator for positioning the child
    * @param index Optional index for insertion
    * @returns this
    */
-  add(child: any, locator: any, index?: number): this;
+  add(child: Figure, locator: ConnectionLocator, index?: number): this;
 
   /**
    * Set the source decorator
@@ -116,7 +141,13 @@ export class Connection extends PolyLine {
    * @param attributes Optional attributes to apply
    * @returns this
    */
-  repaint(attributes?: any): this;
+  repaint(attributes?: {
+    opacity?: number;
+    color?: string;
+    stroke?: number;
+    radius?: number;
+    [key: string]: any;
+  }): this;
 
   /**
    * Get the absolute x position
@@ -192,8 +223,9 @@ export class Connection extends PolyLine {
   /**
    * Set the source port
    * @param port The new source port
+   * @returns this
    */
-  setSource(port: Port): void;
+  setSource(port: Port): this;
 
   /**
    * Get the source port
@@ -204,8 +236,9 @@ export class Connection extends PolyLine {
   /**
    * Set the target port
    * @param port The new target port
+   * @returns this
    */
-  setTarget(port: Port): void;
+  setTarget(port: Port): this;
 
   /**
    * Get the target port
@@ -262,20 +295,43 @@ export class Connection extends PolyLine {
    * Create a command for the specified request
    * @param request The command request
    * @returns The command or null
-   * @private
    */
-  createCommand(request: any): any;
+  createCommand(request: { getPolicy(): CommandType }): any;
 
   /**
    * Get persistent attributes for serialization
-   * @returns Object with attributes
+   * @returns Object with connection attributes including source and target information
    */
-  getPersistentAttributes(): any;
+  getPersistentAttributes(): {
+    source: {
+      node: string;
+      port: string;
+      decoration?: string;
+    };
+    target: {
+      node: string;
+      port: string;
+      decoration?: string;
+    };
+    [key: string]: any;
+  };
 
   /**
    * Set attributes from serialized data
    * @param memento The serialized data
    * @returns this
    */
-  setPersistentAttributes(memento: any): this;
+  setPersistentAttributes(memento: {
+    source?: {
+      node?: string;
+      port?: string;
+      decoration?: string;
+    };
+    target?: {
+      node?: string;
+      port?: string;
+      decoration?: string;
+    };
+    [key: string]: any;
+  }): this;
 }

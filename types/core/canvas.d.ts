@@ -27,55 +27,88 @@ export class Canvas {
   readonly NAME: string;
 
   /** The unique id of this canvas */
-  readonly canvasId: string;
+  canvasId: string;
 
   /** The jQuery selection of the canvas element */
-  readonly html: any; // JQuery;
+  html: JQuery<HTMLElement>;
 
   /** The Raphael paper object for drawing */
-  readonly paper: Raphael.Paper;
+  paper: Raphael.Paper;
+
+  /** The initial width of the canvas */
+  initialWidth: number;
+  
+  /** The initial height of the canvas */
+  initialHeight: number;
 
   /** The current zoom factor */
   zoomFactor: number;
 
   /** The current selection */
-  readonly selection: Selection;
+  selection: Selection;
 
   /** Current drop target during drag and drop operation */
-  readonly currentDropTarget: Figure | null;
+  currentDropTarget: Figure | null;
 
   /** Current hover figure during drag and drop operation */
-  readonly currentHoverFigure: Figure | null;
+  currentHoverFigure: Figure | null;
 
   /** The installed region constraint for figures */
-  readonly regionDragDropConstraint: RegionEditPolicy;
+  regionDragDropConstraint: RegionEditPolicy;
 
   /** The list of all installed edit policies */
-  readonly editPolicy: ArrayList<EditPolicy>;
+  editPolicy: ArrayList<EditPolicy>;
 
   /** All figures in the canvas */
-  readonly figures: ArrayList<Figure>;
+  figures: ArrayList<Figure>;
 
   /** All connections in the canvas */
-  readonly lines: ArrayList<Connection>;
+  lines: ArrayList<Connection>;
 
   /** All ports in the canvas */
-  readonly commonPorts: ArrayList<Port>;
+  commonPorts: ArrayList<Port>;
 
   /** All resize handles that are currently visible */
-  readonly resizeHandles: ArrayList<Figure>;
+  resizeHandles: ArrayList<Figure>;
 
   /** The command stack for undo/redo operations */
-  readonly commandStack: CommandStack;
+  commandStack: CommandStack;
 
   /** A list of connections that need to be repainted after drag/drop */
-  readonly linesToRepaintAfterDragDrop: ArrayList<Connection>;
+  linesToRepaintAfterDragDrop: ArrayList<Connection>;
 
   /** A list of line intersections in the canvas */
-  readonly lineIntersections: ArrayList<any>;
+  lineIntersections: ArrayList<any>;
 
   /** The zoom policy for this canvas */
-  readonly zoomPolicy: ZoomPolicy | null;
+  zoomPolicy: ZoomPolicy | null;
+  
+  /** The scroll area for the canvas */
+  scrollArea: JQuery<HTMLElement>;
+  
+  /** Event subscriptions for the canvas */
+  eventSubscriptions: Record<string, Array<(emitter: Canvas, args?: any) => void>>;
+  
+  /** Flag indicating if mouse is down */
+  mouseDown: boolean;
+  
+  /** Mouse down X coordinate */
+  mouseDownX: number;
+  
+  /** Mouse down Y coordinate */
+  mouseDownY: number;
+  
+  /** Mouse drag diff X */
+  mouseDragDiffX: number;
+  
+  /** Mouse drag diff Y */
+  mouseDragDiffY: number;
+  
+  /** Keyup callback function */
+  keyupCallback: (event: JQuery.KeyUpEvent) => void;
+  
+  /** Keydown callback function */
+  keydownCallback: (event: JQuery.KeyDownEvent) => void;
 
   /**
    * Reset the canvas and delete all model elements.
@@ -364,10 +397,19 @@ export class Canvas {
    * Get the line which match the hands over coordinate
    * @param x The x-coordinate for the hit test
    * @param y The y-coordinate for the hit test
-   * @param lineToIgnore A possible line to ignore
+   * @param lineToIgnore A possible line or figure to ignore
+   * @param whitelist Optional whitelist of figures or classes to consider
    * @returns The matching line
    */
-  getBestLine(x: number, y: number, lineToIgnore?: Connection | Connection[]): Connection | null;
+  getBestLine(x: number, y: number, lineToIgnore?: Connection | Figure | Connection[] | Figure[] | any, whitelist?: Figure | Figure[] | Function): Connection | null;
+
+  /**
+   * Return a common event object independent if we run on an iPad or desktop.
+   * @param event The original event
+   * @returns The normalized event object
+   * @private
+   */
+  _getEvent(event: any): any;
 
   /**
    * Callback for drag enter events during drag and drop operations.
