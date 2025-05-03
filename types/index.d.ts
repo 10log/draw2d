@@ -1,3 +1,14 @@
+/// <reference path="./core/index.d.ts" />
+/// <reference path="./shape/index.d.ts" />
+/// <reference path="./geo/index.d.ts" />
+/// <reference path="./policy/index.d.ts" />
+/// <reference path="./layout/index.d.ts" />
+/// <reference path="./command/index.d.ts" />
+/// <reference path="./io/index.d.ts" />
+/// <reference path="./util/index.d.ts" />
+/// <reference path="./ui/index.d.ts" />
+/// <reference path="./decoration/index.d.ts" />
+
 // Main module declaration for draw2d
 declare module 'draw2d' {
   // Export all the types from submodules using non-relative paths
