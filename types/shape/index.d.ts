@@ -30,3 +30,11 @@ export {
   state,
   widget
 };
+
+// Re-export commonly used shapes for convenience
+export { Rectangle, Circle, Line, Label, Text, Image } from './basic';
+export { Node } from './node';
+export { Composite, Group } from './composite';
+export { Diagram, Pie, Sparkline } from './diagram';
+export { PostIt } from './note';
+export { Slider } from './widget';

@@ -11,6 +11,7 @@ import { Polyfill } from './polyfill';
 import { Extend } from './extend';
 import { RaphaelExt } from './raphaelext';
 import * as spline from './spline';
+import { Point } from '../geo/point';
 
 export {
   ArrayList,
@@ -25,5 +26,6 @@ export {
   Polyfill,
   Extend,
   RaphaelExt,
-  spline
+  spline,
+  Point
 };
