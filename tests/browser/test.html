@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>draw2d Browser Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #canvas {
+            border: 1px solid #ccc;
+            width: 800px;
+            height: 600px;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+        }
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>draw2d Browser Test Page</h1>
+    <div id="status" class="status">Loading...</div>
+    <div id="canvas"></div>
+
+    <script src="../../dist/draw2d.js"></script>
+    <script>
+        (function() {
+            const statusEl = document.getElementById('status');
+
+            try {
+                // Check draw2d is loaded
+                if (typeof draw2d === 'undefined') {
+                    throw new Error('draw2d is not loaded');
+                }
+
+                // Store draw2d globally for tests
+                window.draw2d = draw2d;
+
+                // Create a canvas
+                const canvas = new draw2d.Canvas("canvas");
+                window.testCanvas = canvas;
+
+                // Create some test figures
+                const rect = new draw2d.shape.basic.Rectangle({
+                    width: 100,
+                    height: 50,
+                    x: 50,
+                    y: 50
+                });
+                canvas.add(rect);
+
+                const circle = new draw2d.shape.basic.Circle({
+                    diameter: 60,
+                    x: 200,
+                    y: 100
+                });
+                canvas.add(circle);
+
+                // Create a connection
+                const port1 = rect.createPort("output");
+                const port2 = circle.createPort("input");
+
+                const conn = new draw2d.Connection();
+                conn.setSource(port1);
+                conn.setTarget(port2);
+                canvas.add(conn);
+
+                // Mark as ready
+                statusEl.textContent = 'draw2d loaded successfully! Canvas rendered with test figures.';
+                statusEl.className = 'status ready';
+
+                // Store test data for assertions
+                window.testData = {
+                    canvas: canvas,
+                    rectangle: rect,
+                    circle: circle,
+                    connection: conn,
+                    figureCount: canvas.getFigures().getSize(),
+                    lineCount: canvas.getLines().getSize()
+                };
+
+            } catch (error) {
+                statusEl.textContent = 'Error: ' + error.message;
+                statusEl.className = 'status error';
+                console.error(error);
+                window.testError = error;
+            }
+        })();
+    </script>
+</body>
+</html>

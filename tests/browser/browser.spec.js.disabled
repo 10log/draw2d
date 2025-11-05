@@ -1,0 +1,221 @@
+/**
+ * Browser compatibility tests for draw2d
+ * Tests draw2d in real browsers using Playwright
+ */
+
+const { test, expect } = require('@playwright/test');
+const path = require('path');
+
+test.describe('draw2d Browser Compatibility', () => {
+
+  test.beforeEach(async ({ page }) => {
+    // Navigate to test page using file:// protocol
+    const testPagePath = path.resolve(__dirname, 'test.html');
+    await page.goto(`file://${testPagePath}`);
+
+    // Wait for draw2d to load
+    await page.waitForFunction(() => window.draw2d !== undefined, { timeout: 5000 });
+  });
+
+  test.describe('Library Loading', () => {
+    test('should load draw2d library', async ({ page, browserName }) => {
+      const draw2dExists = await page.evaluate(() => typeof window.draw2d !== 'undefined');
+      expect(draw2dExists).toBe(true);
+    });
+
+    test('should have Canvas class available', async ({ page }) => {
+      const hasCanvas = await page.evaluate(() => typeof window.draw2d.Canvas === 'function');
+      expect(hasCanvas).toBe(true);
+    });
+
+    test('should have shape classes available', async ({ page }) => {
+      const hasShapes = await page.evaluate(() => {
+        return typeof window.draw2d.shape.basic.Rectangle === 'function' &&
+               typeof window.draw2d.shape.basic.Circle === 'function';
+      });
+      expect(hasShapes).toBe(true);
+    });
+
+    test('should show ready status', async ({ page }) => {
+      const statusText = await page.locator('#status').textContent();
+      expect(statusText).toContain('loaded successfully');
+    });
+  });
+
+  test.describe('Canvas Rendering', () => {
+    test('should create canvas element', async ({ page }) => {
+      const canvasExists = await page.evaluate(() => {
+        const canvasDiv = document.getElementById('canvas');
+        return canvasDiv !== null && canvasDiv.children.length > 0;
+      });
+      expect(canvasExists).toBe(true);
+    });
+
+    test('should render SVG elements', async ({ page }) => {
+      const hasSVG = await page.evaluate(() => {
+        const canvasDiv = document.getElementById('canvas');
+        const svg = canvasDiv.querySelector('svg');
+        return svg !== null;
+      });
+      expect(hasSVG).toBe(true);
+    });
+
+    test('should have correct figure count', async ({ page }) => {
+      const figureCount = await page.evaluate(() => window.testData.figureCount);
+      expect(figureCount).toBe(2); // Rectangle + Circle
+    });
+
+    test('should have correct line count', async ({ page }) => {
+      const lineCount = await page.evaluate(() => window.testData.lineCount);
+      expect(lineCount).toBe(1); // One connection
+    });
+  });
+
+  test.describe('Figure Creation', () => {
+    test('should create rectangle', async ({ page }) => {
+      const rectExists = await page.evaluate(() => {
+        return window.testData.rectangle instanceof window.draw2d.shape.basic.Rectangle;
+      });
+      expect(rectExists).toBe(true);
+    });
+
+    test('should create circle', async ({ page }) => {
+      const circleExists = await page.evaluate(() => {
+        return window.testData.circle instanceof window.draw2d.shape.basic.Circle;
+      });
+      expect(circleExists).toBe(true);
+    });
+
+    test('should set rectangle position', async ({ page }) => {
+      const position = await page.evaluate(() => {
+        const rect = window.testData.rectangle;
+        return { x: rect.getX(), y: rect.getY() };
+      });
+      expect(position.x).toBe(50);
+      expect(position.y).toBe(50);
+    });
+
+    test('should set circle position', async ({ page }) => {
+      const position = await page.evaluate(() => {
+        const circle = window.testData.circle;
+        return { x: circle.getX(), y: circle.getY() };
+      });
+      expect(position.x).toBe(200);
+      expect(position.y).toBe(100);
+    });
+  });
+
+  test.describe('Connection Handling', () => {
+    test('should create connection', async ({ page }) => {
+      const connExists = await page.evaluate(() => {
+        return window.testData.connection instanceof window.draw2d.Connection;
+      });
+      expect(connExists).toBe(true);
+    });
+
+    test('should have source port', async ({ page }) => {
+      const hasSource = await page.evaluate(() => {
+        return window.testData.connection.getSource() !== null;
+      });
+      expect(hasSource).toBe(true);
+    });
+
+    test('should have target port', async ({ page }) => {
+      const hasTarget = await page.evaluate(() => {
+        return window.testData.connection.getTarget() !== null;
+      });
+      expect(hasTarget).toBe(true);
+    });
+
+    test('should render connection line', async ({ page }) => {
+      const hasConnectionElement = await page.evaluate(() => {
+        const canvasDiv = document.getElementById('canvas');
+        const paths = canvasDiv.querySelectorAll('path');
+        return paths.length > 0; // Connection should render as path
+      });
+      expect(hasConnectionElement).toBe(true);
+    });
+  });
+
+  test.describe('Interactive Features', () => {
+    test('should support adding figure via JavaScript', async ({ page }) => {
+      const newFigureCount = await page.evaluate(() => {
+        const canvas = window.testData.canvas;
+        const oval = new window.draw2d.shape.basic.Oval({
+          width: 80,
+          height: 60,
+          x: 300,
+          y: 200
+        });
+        canvas.add(oval);
+        return canvas.getFigures().getSize();
+      });
+      expect(newFigureCount).toBe(3); // Original 2 + 1 new
+    });
+
+    test('should support figure movement', async ({ page }) => {
+      const newPosition = await page.evaluate(() => {
+        const rect = window.testData.rectangle;
+        rect.setPosition(100, 100);
+        return { x: rect.getX(), y: rect.getY() };
+      });
+      expect(newPosition.x).toBe(100);
+      expect(newPosition.y).toBe(100);
+    });
+
+    test('should support figure resizing', async ({ page }) => {
+      const newSize = await page.evaluate(() => {
+        const rect = window.testData.rectangle;
+        rect.setDimension(150, 75);
+        return { width: rect.getWidth(), height: rect.getHeight() };
+      });
+      expect(newSize.width).toBe(150);
+      expect(newSize.height).toBe(75);
+    });
+
+    test('should support clearing canvas', async ({ page }) => {
+      const cleared = await page.evaluate(() => {
+        const canvas = window.testData.canvas;
+        canvas.clear();
+        return {
+          figures: canvas.getFigures().getSize(),
+          lines: canvas.getLines().getSize()
+        };
+      });
+      expect(cleared.figures).toBe(0);
+      expect(cleared.lines).toBe(0);
+    });
+  });
+
+  test.describe('Browser-Specific Features', () => {
+    test('should render in current browser', async ({ page, browserName }) => {
+      const renderedCorrectly = await page.evaluate(() => {
+        const canvasDiv = document.getElementById('canvas');
+        const svg = canvasDiv.querySelector('svg');
+        return svg !== null && svg.children.length > 0;
+      });
+      expect(renderedCorrectly).toBe(true);
+    });
+
+    test('should have proper canvas dimensions', async ({ page }) => {
+      const dimensions = await page.evaluate(() => {
+        const canvasDiv = document.getElementById('canvas');
+        const rect = canvasDiv.getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+      });
+      expect(dimensions.width).toBeGreaterThan(0);
+      expect(dimensions.height).toBeGreaterThan(0);
+    });
+
+    test('should support event handling', async ({ page }) => {
+      const eventWorks = await page.evaluate(() => {
+        const canvas = window.testData.canvas;
+        let eventFired = false;
+        canvas.on('test', () => { eventFired = true; });
+        canvas.fireEvent('test');
+        return eventFired;
+      });
+      expect(eventWorks).toBe(true);
+    });
+  });
+});
