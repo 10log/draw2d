@@ -111,6 +111,8 @@ draw2d.Canvas = Class.extend(
 
       // event handling since version 5.0.0
       this.eventSubscriptions = {}
+      // Track which events each callback is registered to for O(1) off() lookup
+      this.eventFunctionMap = new Map()
 
       this.editPolicy = new draw2d.util.ArrayList()
 
@@ -1971,11 +1973,19 @@ draw2d.Canvas = Class.extend(
      */
     on: function (event, callback) {
       let events = event.split(" ")
+
+      // Track which events this callback is registered to for efficient off() removal
+      if (!this.eventFunctionMap.has(callback)) {
+        this.eventFunctionMap.set(callback, new Set())
+      }
+      let callbackEvents = this.eventFunctionMap.get(callback)
+
       for (let i = 0; i < events.length; i++) {
         if (typeof this.eventSubscriptions[events[i]] === 'undefined') {
           this.eventSubscriptions[events[i]] = []
         }
         this.eventSubscriptions[events[i]].push(callback)
+        callbackEvents.add(events[i])
       }
       return this
     },
@@ -1993,14 +2003,34 @@ draw2d.Canvas = Class.extend(
      */
     off: function (eventOrFunction) {
       if (typeof eventOrFunction === "undefined") {
+        // Clear all event subscriptions
         this.eventSubscriptions = {}
+        this.eventFunctionMap.clear()
       } else if (typeof eventOrFunction === 'string') {
+        // Remove all callbacks for this event
+        let callbacks = this.eventSubscriptions[eventOrFunction] || []
+        for (let i = 0; i < callbacks.length; i++) {
+          let callback = callbacks[i]
+          let events = this.eventFunctionMap.get(callback)
+          if (events) {
+            events.delete(eventOrFunction)
+            if (events.size === 0) {
+              this.eventFunctionMap.delete(callback)
+            }
+          }
+        }
         this.eventSubscriptions[eventOrFunction] = []
       } else {
-        for (let event in this.eventSubscriptions) {
-          this.eventSubscriptions[event] = this.eventSubscriptions[event].filter(function (callback) {
-            return callback !== eventOrFunction
-          })
+        // Remove specific function from all events (optimized with Map lookup)
+        let events = this.eventFunctionMap.get(eventOrFunction)
+        if (events) {
+          // Only iterate through events this function is actually registered to
+          for (let event of events) {
+            if (this.eventSubscriptions[event]) {
+              this.eventSubscriptions[event] = this.eventSubscriptions[event].filter(cb => cb !== eventOrFunction)
+            }
+          }
+          this.eventFunctionMap.delete(eventOrFunction)
         }
       }
 
