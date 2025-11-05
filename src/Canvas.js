@@ -170,153 +170,39 @@ draw2d.Canvas = Class.extend(
       this.mouseDragDiffX = 0
       this.mouseDragDiffY = 0
 
-      this.html.bind("mouseup touchend", function (event) {
-        if (_this.mouseDown === false) {
-          return
-        }
-
-        event = _this._getEvent(event)
-        _this.markIntersectionsDirty()
-
-        _this.mouseDown = false
-        let pos = _this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
-        _this.editPolicy.each(function (i, policy) {
-          policy.onMouseUp(_this, pos.x, pos.y, event.shiftKey, event.ctrlKey)
-        })
-
-        _this.mouseDragDiffX = 0
-        _this.mouseDragDiffY = 0
-      })
-
-      this.html.bind("mousemove touchmove", function (event) {
-        event = _this._getEvent(event)
-        if (_this.mouseDown === false) {
-          // Hover mode: coordinate transformation is needed for hit testing
-          let pos = _this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
-          // mouseEnter/mouseLeave events for Figures. Don't use the Raphael or DOM native functions.
-          // Raphael didn't work for Rectangle with transparent fill (events only fired for the border line)
-          // DOM didn't work well for lines. No eclipse area - you must hit the line exact to retrieve the event.
-          // In this case I implement my own stuff...again and again.
-          //
-          // don't break the main event loop if one element fires an error during enter/leave event.
-          try {
-            let hover = _this.getBestFigure(pos.x, pos.y)
-            if (hover !== _this.currentHoverFigure && _this.currentHoverFigure !== null) {
-              _this.currentHoverFigure.onMouseLeave() // deprecated
-              _this.currentHoverFigure.fireEvent("mouseleave")
-              _this.fireEvent("mouseleave", {figure: _this.currentHoverFigure})
-            }
-            if (hover !== _this.currentHoverFigure && hover !== null) {
-              hover.onMouseEnter()
-              hover.fireEvent("mouseenter")
-              _this.fireEvent("mouseenter", {figure: hover})
-            }
-            _this.currentHoverFigure = hover
-          } catch (exc) {
-            // just write it to the console
-            console.log(exc)
-          }
-
-          _this.editPolicy.each(function (i, policy) {
-            policy.onMouseMove(_this, pos.x, pos.y, event.shiftKey, event.ctrlKey)
-          })
-          _this.fireEvent("mousemove", {
-            x: pos.x,
-            y: pos.y,
-            shiftKey: event.shiftKey,
-            ctrlKey: event.ctrlKey,
-            hoverFigure: _this.currentHoverFigure
-          })
-        } else {
-          // Drag mode: only calculate deltas, coordinate transformation only needed for event data
-          let diffXAbs = (event.clientX - _this.mouseDownX) * _this.zoomFactor
-          let diffYAbs = (event.clientY - _this.mouseDownY) * _this.zoomFactor
-          _this.editPolicy.each(function (i, policy) {
-            policy.onMouseDrag(_this, diffXAbs, diffYAbs, diffXAbs - _this.mouseDragDiffX, diffYAbs - _this.mouseDragDiffY, event.shiftKey, event.ctrlKey)
-          })
-          _this.mouseDragDiffX = diffXAbs
-          _this.mouseDragDiffY = diffYAbs
-          // Transform coordinates only for event data
-          let pos = _this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
-          _this.fireEvent("mousemove", {
-            x: pos.x,
-            y: pos.y,
-            shiftKey: event.shiftKey,
-            ctrlKey: event.ctrlKey,
-            hoverFigure: _this.currentHoverFigure
-          })
-        }
-      })
-
-      this.html.bind("mousedown", function (event) {
-        try {
-          let pos = null
-          switch (event.which) {
-            case 1: //touch pressed
-            case 0: //Left mouse button pressed
-              try {
-                event.preventDefault()
-                event = _this._getEvent(event)
-                _this.mouseDownX = event.clientX
-                _this.mouseDownY = event.clientY
-                _this.mouseDragDiffX = 0
-                _this.mouseDragDiffY = 0
-                pos = _this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
-                _this.mouseDown = true
-                _this.editPolicy.each(function (i, policy) {
-                  policy.onMouseDown(_this, pos.x, pos.y, event.shiftKey, event.ctrlKey)
-                })
-              } catch (exc) {
-                console.log(exc)
-              }
-              break
-            case 3: //Right mouse button pressed
-              event.preventDefault()
-              if (typeof event.stopPropagation !== "undefined")
-                event.stopPropagation()
-              event = _this._getEvent(event)
-              pos = _this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
-              _this.onRightMouseDown(pos.x, pos.y, event.shiftKey, event.ctrlKey)
-              return false
-            case 2:
-              //Middle mouse button pressed
-              break
-            default:
-            //You have a strange mouse
-          }
-        } catch (exc) {
-          console.log(exc)
-        }
-      })
-
-
-      // Catch the dblclick and route them to the Canvas hook.
+      // Unified event handler for better performance (event delegation pattern)
+      // Reduces memory overhead and simplifies event management
       //
-      this.html.on("dblclick", function (event) {
-        event = _this._getEvent(event)
+      this.pointerEventHandler = function (event) {
+        let normalizedEvent = _this._getEvent(event)
 
-        _this.mouseDownX = event.clientX
-        _this.mouseDownY = event.clientY
-        let pos = _this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
-        _this.onDoubleClick(pos.x, pos.y, event.shiftKey, event.ctrlKey)
-      })
-
-
-      // Catch the click event and route them to the canvas hook
-      //
-      this.html.on("click", function (event) {
-        event = _this._getEvent(event)
-
-        // fire only the click event if we didn't move the mouse (drag&drop)
-        //
-        if (_this.mouseDownX === event.clientX || _this.mouseDownY === event.clientY) {
-          let pos = _this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
-          _this.onClick(pos.x, pos.y, event.shiftKey, event.ctrlKey)
+        switch(event.type) {
+          case 'mouseup':
+          case 'touchend':
+            _this._handlePointerUp(normalizedEvent)
+            break
+          case 'mousemove':
+          case 'touchmove':
+            _this._handlePointerMove(normalizedEvent)
+            break
+          case 'mousedown':
+            _this._handlePointerDown(event)
+            break
+          case 'click':
+            _this._handleClick(normalizedEvent)
+            break
+          case 'dblclick':
+            _this._handleDoubleClick(normalizedEvent)
+            break
         }
-      })
+      }
+
+      // Bind all pointer events to single unified handler
+      this.html.on('mousedown mousemove mouseup click dblclick touchstart touchmove touchend', this.pointerEventHandler)
 
       // Important: MozMousePixelScroll is required to prevent 1px scrolling
       // in FF event if we call "e.preventDefault()"
+      // Keep wheel event separate as it has different normalization needs
       this.html.on('MozMousePixelScroll DOMMouseScroll mousewheel', function (e) {
         let event = _this._getEvent(e)
         let pos = _this.fromDocumentToCanvasCoordinate(event.originalEvent.clientX, event.originalEvent.clientY)
@@ -367,6 +253,169 @@ draw2d.Canvas = Class.extend(
       }
       $(document).bind("keydown", this.keydownCallback)
 
+    },
+
+    /**
+     * Handle pointer up events (mouseup/touchend)
+     * Extracted from init for event delegation pattern
+     *
+     * @private
+     */
+    _handlePointerUp: function(event) {
+      if (this.mouseDown === false) {
+        return
+      }
+
+      this.markIntersectionsDirty()
+
+      this.mouseDown = false
+      let pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
+      this.editPolicy.each((i, policy) => {
+        policy.onMouseUp(this, pos.x, pos.y, event.shiftKey, event.ctrlKey)
+      })
+
+      this.mouseDragDiffX = 0
+      this.mouseDragDiffY = 0
+    },
+
+    /**
+     * Handle pointer move events (mousemove/touchmove)
+     * Extracted from init for event delegation pattern
+     *
+     * @private
+     */
+    _handlePointerMove: function(event) {
+      if (this.mouseDown === false) {
+        // Hover mode: coordinate transformation is needed for hit testing
+        let pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
+        // mouseEnter/mouseLeave events for Figures. Don't use the Raphael or DOM native functions.
+        // Raphael didn't work for Rectangle with transparent fill (events only fired for the border line)
+        // DOM didn't work well for lines. No eclipse area - you must hit the line exact to retrieve the event.
+        // In this case I implement my own stuff...again and again.
+        //
+        // don't break the main event loop if one element fires an error during enter/leave event.
+        try {
+          let hover = this.getBestFigure(pos.x, pos.y)
+          if (hover !== this.currentHoverFigure && this.currentHoverFigure !== null) {
+            this.currentHoverFigure.onMouseLeave() // deprecated
+            this.currentHoverFigure.fireEvent("mouseleave")
+            this.fireEvent("mouseleave", {figure: this.currentHoverFigure})
+          }
+          if (hover !== this.currentHoverFigure && hover !== null) {
+            hover.onMouseEnter()
+            hover.fireEvent("mouseenter")
+            this.fireEvent("mouseenter", {figure: hover})
+          }
+          this.currentHoverFigure = hover
+        } catch (exc) {
+          // just write it to the console
+          console.log(exc)
+        }
+
+        this.editPolicy.each((i, policy) => {
+          policy.onMouseMove(this, pos.x, pos.y, event.shiftKey, event.ctrlKey)
+        })
+        this.fireEvent("mousemove", {
+          x: pos.x,
+          y: pos.y,
+          shiftKey: event.shiftKey,
+          ctrlKey: event.ctrlKey,
+          hoverFigure: this.currentHoverFigure
+        })
+      } else {
+        // Drag mode: only calculate deltas, coordinate transformation only needed for event data
+        let diffXAbs = (event.clientX - this.mouseDownX) * this.zoomFactor
+        let diffYAbs = (event.clientY - this.mouseDownY) * this.zoomFactor
+        this.editPolicy.each((i, policy) => {
+          policy.onMouseDrag(this, diffXAbs, diffYAbs, diffXAbs - this.mouseDragDiffX, diffYAbs - this.mouseDragDiffY, event.shiftKey, event.ctrlKey)
+        })
+        this.mouseDragDiffX = diffXAbs
+        this.mouseDragDiffY = diffYAbs
+        // Transform coordinates only for event data
+        let pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
+        this.fireEvent("mousemove", {
+          x: pos.x,
+          y: pos.y,
+          shiftKey: event.shiftKey,
+          ctrlKey: event.ctrlKey,
+          hoverFigure: this.currentHoverFigure
+        })
+      }
+    },
+
+    /**
+     * Handle pointer down events (mousedown)
+     * Extracted from init for event delegation pattern
+     *
+     * @private
+     */
+    _handlePointerDown: function(event) {
+      try {
+        let pos = null
+        switch (event.which) {
+          case 1: //touch pressed
+          case 0: //Left mouse button pressed
+            try {
+              event.preventDefault()
+              event = this._getEvent(event)
+              this.mouseDownX = event.clientX
+              this.mouseDownY = event.clientY
+              this.mouseDragDiffX = 0
+              this.mouseDragDiffY = 0
+              pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
+              this.mouseDown = true
+              this.editPolicy.each((i, policy) => {
+                policy.onMouseDown(this, pos.x, pos.y, event.shiftKey, event.ctrlKey)
+              })
+            } catch (exc) {
+              console.log(exc)
+            }
+            break
+          case 3: //Right mouse button pressed
+            event.preventDefault()
+            if (typeof event.stopPropagation !== "undefined")
+              event.stopPropagation()
+            event = this._getEvent(event)
+            pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
+            this.onRightMouseDown(pos.x, pos.y, event.shiftKey, event.ctrlKey)
+            return false
+          case 2:
+            //Middle mouse button pressed
+            break
+          default:
+          //You have a strange mouse
+        }
+      } catch (exc) {
+        console.log(exc)
+      }
+    },
+
+    /**
+     * Handle click events
+     * Extracted from init for event delegation pattern
+     *
+     * @private
+     */
+    _handleClick: function(event) {
+      // fire only the click event if we didn't move the mouse (drag&drop)
+      //
+      if (this.mouseDownX === event.clientX || this.mouseDownY === event.clientY) {
+        let pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
+        this.onClick(pos.x, pos.y, event.shiftKey, event.ctrlKey)
+      }
+    },
+
+    /**
+     * Handle double click events
+     * Extracted from init for event delegation pattern
+     *
+     * @private
+     */
+    _handleDoubleClick: function(event) {
+      this.mouseDownX = event.clientX
+      this.mouseDownY = event.clientY
+      let pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
+      this.onDoubleClick(pos.x, pos.y, event.shiftKey, event.ctrlKey)
     },
 
     /**
