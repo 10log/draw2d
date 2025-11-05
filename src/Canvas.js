@@ -461,8 +461,9 @@ draw2d.Canvas = Class.extend(
      */
     _handleClick: function(event) {
       // fire only the click event if we didn't move the mouse (drag&drop)
-      //
-      if (this.mouseDownX === event.clientX || this.mouseDownY === event.clientY) {
+      // IMPORTANT: Must check BOTH coordinates with AND (&&) not OR (||)
+      // OR would fire click even during drag if either X or Y happens to match
+      if (this.mouseDownX === event.clientX && this.mouseDownY === event.clientY) {
         // Cache zoom factor and inline coordinate transformation
         let zoom = this.zoomFactor
         let x = (event.clientX - this._cachedAbsoluteX + this.getScrollLeft()) * zoom
