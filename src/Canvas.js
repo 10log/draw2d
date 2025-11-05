@@ -159,6 +159,10 @@ draw2d.Canvas = Class.extend(
       this.repaintScheduled = false
       this.linesToRepaint = new Set()
 
+      // Reusable point objects for internal coordinate transformations
+      // Eliminates allocation overhead in hot paths (mousemove, drag operations)
+      this._tempPoint = new draw2d.geo.Point(0, 0)
+
       // alternative/legacy zoom implementation
       // this.installEditPolicy( new draw2d.policy.canvas.ZoomPolicy());                  // Responsible for zooming
       this.installEditPolicy(new draw2d.policy.canvas.WheelZoomPolicy())                // Responsible for zooming with mouse wheel
@@ -330,10 +334,10 @@ draw2d.Canvas = Class.extend(
 
       if (this.mouseDown === false) {
         // Hover mode: coordinate transformation is needed for hit testing
-        // Inline zoom calculation for performance
-        let x = (event.clientX - this._cachedAbsoluteX + this.getScrollLeft()) * zoom
-        let y = (event.clientY - this._cachedAbsoluteY + this.getScrollTop()) * zoom
-        let pos = new draw2d.geo.Point(x, y)
+        // Inline zoom calculation and reuse temp point for performance
+        this._tempPoint.x = (event.clientX - this._cachedAbsoluteX + this.getScrollLeft()) * zoom
+        this._tempPoint.y = (event.clientY - this._cachedAbsoluteY + this.getScrollTop()) * zoom
+        let pos = this._tempPoint
 
         // mouseEnter/mouseLeave events for Figures. Don't use the Raphael or DOM native functions.
         // Raphael didn't work for Rectangle with transparent fill (events only fired for the border line)
@@ -378,13 +382,13 @@ draw2d.Canvas = Class.extend(
         })
         this.mouseDragDiffX = diffXAbs
         this.mouseDragDiffY = diffYAbs
-        // Inline coordinate transformation for event data
-        let x = (event.clientX - this._cachedAbsoluteX + this.getScrollLeft()) * zoom
-        let y = (event.clientY - this._cachedAbsoluteY + this.getScrollTop()) * zoom
-        let pos = new draw2d.geo.Point(x, y)
+        // Inline coordinate transformation and reuse temp point for performance
+        this._tempPoint.x = (event.clientX - this._cachedAbsoluteX + this.getScrollLeft()) * zoom
+        this._tempPoint.y = (event.clientY - this._cachedAbsoluteY + this.getScrollTop()) * zoom
+        // Copy values for event (don't pass temp point reference)
         this.fireEvent("mousemove", {
-          x: pos.x,
-          y: pos.y,
+          x: this._tempPoint.x,
+          y: this._tempPoint.y,
           shiftKey: event.shiftKey,
           ctrlKey: event.ctrlKey,
           hoverFigure: this.currentHoverFigure
