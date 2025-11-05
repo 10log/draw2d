@@ -117,6 +117,11 @@ draw2d.Figure = Class.extend(
       // since 4.1.0.
       this.keepAspectRatio = false
 
+      // Visibility cache for performance optimization
+      // Caching visibility state avoids repeated parent chain traversal
+      this._visibilityCache = null
+      this._visibilityCacheValid = false
+
 
       this.canSnapToHelper = true
       this.snapToGridAnchor = new draw2d.geo.Point(0, 0)    // hot spot for snap to grid
@@ -1630,6 +1635,9 @@ draw2d.Figure = Class.extend(
       }
       this.visible = flag
 
+      // Invalidate visibility cache for this figure and all children
+      this._invalidateVisibilityCache()
+
       this.repaint({visibleDuration: duration})
 
       this.fireEvent(this.visible?"show":"hide")
@@ -1639,14 +1647,48 @@ draw2d.Figure = Class.extend(
     },
 
     /**
+     * Invalidate visibility cache for this figure and recursively for all children
+     * Called when visibility changes or parent changes
+     *
+     * @private
+     */
+    _invalidateVisibilityCache: function() {
+      this._visibilityCacheValid = false
+      this._visibilityCache = null
+
+      // Invalidate children recursively
+      this.children.each((i, child) => {
+        child.figure._invalidateVisibilityCache()
+      })
+    },
+
+    /**
      *
      * Return true if the figure visible.
+     * Uses cached result for performance when called repeatedly.
      *
      * @returns {Boolean}
      * @since 1.1.0
      */
     isVisible: function () {
-      return this.visible && this.shape !== null
+      // Return cached result if valid
+      if (this._visibilityCacheValid) {
+        return this._visibilityCache
+      }
+
+      // Calculate visibility (must be visible AND have shape AND parent must be visible)
+      let result = this.visible && this.shape !== null
+
+      // Check parent visibility if this figure has a parent
+      if (result && this.parent) {
+        result = this.parent.isVisible()
+      }
+
+      // Cache the result
+      this._visibilityCache = result
+      this._visibilityCacheValid = true
+
+      return result
     },
 
     /**
@@ -2310,6 +2352,10 @@ draw2d.Figure = Class.extend(
      **/
     setParent: function (parent) {
       this.parent = parent
+
+      // Invalidate visibility cache when parent changes
+      // Parent's visibility affects this figure's effective visibility
+      this._invalidateVisibilityCache()
 
       if (parent !== null) {
         // inherit the selection handling impl from the parent
