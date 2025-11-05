@@ -140,6 +140,20 @@ draw2d.Canvas = Class.extend(
       this.lastWheelEventTime = 0
       this.wheelThrottleMs = 16.67 // ~60fps
 
+      // Cache canvas position for performance optimization
+      // Eliminates repeated DOM queries in coordinate transformation hot path
+      this._cachedAbsoluteX = 0
+      this._cachedAbsoluteY = 0
+      this._updateCanvasPosition()
+
+      // Update cache on scroll and resize events
+      let updatePosition = () => this._updateCanvasPosition()
+      this.getScrollArea().on('scroll', updatePosition)
+      $(window).on('resize', updatePosition)
+
+      // Store for cleanup
+      this._positionUpdateHandler = updatePosition
+
       // alternative/legacy zoom implementation
       // this.installEditPolicy( new draw2d.policy.canvas.ZoomPolicy());                  // Responsible for zooming
       this.installEditPolicy(new draw2d.policy.canvas.WheelZoomPolicy())                // Responsible for zooming with mouse wheel
@@ -444,6 +458,13 @@ draw2d.Canvas = Class.extend(
       this.clear()
       $(document).unbind("keydown", this.keydownCallback)
       $(document).unbind("keyup", this.keyupCallback)
+
+      // Clean up position update handlers
+      if (this._positionUpdateHandler) {
+        this.getScrollArea().off('scroll', this._positionUpdateHandler)
+        $(window).off('resize', this._positionUpdateHandler)
+      }
+
       // reset the event handlers of the canvas without any notice
       //
       this.eventSubscriptions = {}
@@ -717,6 +738,8 @@ draw2d.Canvas = Class.extend(
       if (this.zoomPolicy) {
         this.zoomPolicy.setZoom(zoomFactor, animated)
       }
+      // Update cached position as zoom can affect canvas position
+      this._updateCanvasPosition()
     },
 
     /**
@@ -927,22 +950,39 @@ draw2d.Canvas = Class.extend(
 
     /**
      *
+     * Update the cached canvas position from DOM.
+     * Called automatically on scroll, resize, and zoom events.
+     *
+     * @private
+     * @returns {this}
+     **/
+    _updateCanvasPosition: function() {
+      let offset = this.html.offset()
+      this._cachedAbsoluteX = offset.left
+      this._cachedAbsoluteY = offset.top
+      return this
+    },
+
+    /**
+     *
      * The absolute document x offset.
+     * Returns cached value for performance (updated on scroll/resize/zoom).
      *
      * @returns {Number}
      **/
     getAbsoluteX: function () {
-      return this.html.offset().left
+      return this._cachedAbsoluteX
     },
 
     /**
      *
      * The absolute document y offset.
+     * Returns cached value for performance (updated on scroll/resize/zoom).
      *
      * @returns {Number}
      **/
     getAbsoluteY: function () {
-      return this.html.offset().top
+      return this._cachedAbsoluteY
     },
 
 
