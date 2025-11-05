@@ -1374,31 +1374,27 @@ draw2d.Canvas = Class.extend(
      * @returns {draw2d.Figure|null}
      */
     _checkRecursiveHitTest: function(children, x, y, isInBlacklist, isInWhitelist) {
-      let result = null
-
-      children.each((i, e) => {
-        if (result !== null) return false // Early exit if already found
-
+      // Use traditional for loop for cleaner early exit with break
+      for (let i = 0; i < children.getSize(); i++) {
+        let e = children.get(i)
         let c = e.figure
 
         // Check children first (depth-first search)
         let childResult = this._checkRecursiveHitTest(c.children, x, y, isInBlacklist, isInWhitelist)
         if (childResult !== null) {
-          result = childResult
-          return false // Break the loop
+          return childResult // Direct return for immediate exit
         }
 
-        // Check this figure with early exits
-        if (!c.isVisible()) return true
-        if (isInBlacklist(c)) return true
-        if (!isInWhitelist(c)) return true
-        if (!c.hitTest(x, y)) return true
+        // Check this figure with early exits using continue
+        if (!c.isVisible()) continue
+        if (isInBlacklist(c)) continue
+        if (!isInWhitelist(c)) continue
+        if (!c.hitTest(x, y)) continue
 
-        result = c
-        return false // Found it, break the loop
-      })
+        return c // Found it, return immediately
+      }
 
-      return result
+      return null // No match found
     },
 
     /**
