@@ -234,7 +234,10 @@ draw2d.Canvas = Class.extend(
         _this.lastWheelEventTime = currentTime
 
         let event = _this._getEvent(e)
-        let pos = _this.fromDocumentToCanvasCoordinate(event.originalEvent.clientX, event.originalEvent.clientY)
+        // Cache zoom factor and inline coordinate transformation
+        let zoom = _this.zoomFactor
+        let x = (event.originalEvent.clientX - _this._cachedAbsoluteX + _this.getScrollLeft()) * zoom
+        let y = (event.originalEvent.clientY - _this._cachedAbsoluteY + _this.getScrollTop()) * zoom
 
         let delta = 0
         if (e.type === 'mousewheel') {
@@ -243,7 +246,7 @@ draw2d.Canvas = Class.extend(
           delta = 40 * e.originalEvent.detail
         }
 
-        let returnValue = _this.onMouseWheel(delta, pos.x, pos.y, event.shiftKey, event.ctrlKey)
+        let returnValue = _this.onMouseWheel(delta, x, y, event.shiftKey, event.ctrlKey)
 
         if (returnValue === false) {
           e.preventDefault()
@@ -298,9 +301,12 @@ draw2d.Canvas = Class.extend(
       this.markIntersectionsDirty()
 
       this.mouseDown = false
-      let pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
+      // Cache zoom factor and inline coordinate transformation
+      let zoom = this.zoomFactor
+      let x = (event.clientX - this._cachedAbsoluteX + this.getScrollLeft()) * zoom
+      let y = (event.clientY - this._cachedAbsoluteY + this.getScrollTop()) * zoom
       this.editPolicy.each((i, policy) => {
-        policy.onMouseUp(this, pos.x, pos.y, event.shiftKey, event.ctrlKey)
+        policy.onMouseUp(this, x, y, event.shiftKey, event.ctrlKey)
       })
 
       this.mouseDragDiffX = 0
@@ -314,9 +320,16 @@ draw2d.Canvas = Class.extend(
      * @private
      */
     _handlePointerMove: function(event) {
+      // Cache zoom factor to avoid repeated property access in hot path
+      let zoom = this.zoomFactor
+
       if (this.mouseDown === false) {
         // Hover mode: coordinate transformation is needed for hit testing
-        let pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
+        // Inline zoom calculation for performance
+        let x = (event.clientX - this._cachedAbsoluteX + this.getScrollLeft()) * zoom
+        let y = (event.clientY - this._cachedAbsoluteY + this.getScrollTop()) * zoom
+        let pos = new draw2d.geo.Point(x, y)
+
         // mouseEnter/mouseLeave events for Figures. Don't use the Raphael or DOM native functions.
         // Raphael didn't work for Rectangle with transparent fill (events only fired for the border line)
         // DOM didn't work well for lines. No eclipse area - you must hit the line exact to retrieve the event.
@@ -352,16 +365,18 @@ draw2d.Canvas = Class.extend(
           hoverFigure: this.currentHoverFigure
         })
       } else {
-        // Drag mode: only calculate deltas, coordinate transformation only needed for event data
-        let diffXAbs = (event.clientX - this.mouseDownX) * this.zoomFactor
-        let diffYAbs = (event.clientY - this.mouseDownY) * this.zoomFactor
+        // Drag mode: inline zoom calculation for deltas
+        let diffXAbs = (event.clientX - this.mouseDownX) * zoom
+        let diffYAbs = (event.clientY - this.mouseDownY) * zoom
         this.editPolicy.each((i, policy) => {
           policy.onMouseDrag(this, diffXAbs, diffYAbs, diffXAbs - this.mouseDragDiffX, diffYAbs - this.mouseDragDiffY, event.shiftKey, event.ctrlKey)
         })
         this.mouseDragDiffX = diffXAbs
         this.mouseDragDiffY = diffYAbs
-        // Transform coordinates only for event data
-        let pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
+        // Inline coordinate transformation for event data
+        let x = (event.clientX - this._cachedAbsoluteX + this.getScrollLeft()) * zoom
+        let y = (event.clientY - this._cachedAbsoluteY + this.getScrollTop()) * zoom
+        let pos = new draw2d.geo.Point(x, y)
         this.fireEvent("mousemove", {
           x: pos.x,
           y: pos.y,
@@ -380,6 +395,8 @@ draw2d.Canvas = Class.extend(
      */
     _handlePointerDown: function(event) {
       try {
+        // Cache zoom factor to avoid repeated property access
+        let zoom = this.zoomFactor
         let pos = null
         switch (event.which) {
           case 1: //touch pressed
@@ -391,7 +408,10 @@ draw2d.Canvas = Class.extend(
               this.mouseDownY = event.clientY
               this.mouseDragDiffX = 0
               this.mouseDragDiffY = 0
-              pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
+              // Inline coordinate transformation
+              let x = (event.clientX - this._cachedAbsoluteX + this.getScrollLeft()) * zoom
+              let y = (event.clientY - this._cachedAbsoluteY + this.getScrollTop()) * zoom
+              pos = new draw2d.geo.Point(x, y)
               this.mouseDown = true
               this.editPolicy.each((i, policy) => {
                 policy.onMouseDown(this, pos.x, pos.y, event.shiftKey, event.ctrlKey)
@@ -405,7 +425,10 @@ draw2d.Canvas = Class.extend(
             if (typeof event.stopPropagation !== "undefined")
               event.stopPropagation()
             event = this._getEvent(event)
-            pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
+            // Inline coordinate transformation
+            let rx = (event.clientX - this._cachedAbsoluteX + this.getScrollLeft()) * zoom
+            let ry = (event.clientY - this._cachedAbsoluteY + this.getScrollTop()) * zoom
+            pos = new draw2d.geo.Point(rx, ry)
             this.onRightMouseDown(pos.x, pos.y, event.shiftKey, event.ctrlKey)
             return false
           case 2:
@@ -429,8 +452,11 @@ draw2d.Canvas = Class.extend(
       // fire only the click event if we didn't move the mouse (drag&drop)
       //
       if (this.mouseDownX === event.clientX || this.mouseDownY === event.clientY) {
-        let pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
-        this.onClick(pos.x, pos.y, event.shiftKey, event.ctrlKey)
+        // Cache zoom factor and inline coordinate transformation
+        let zoom = this.zoomFactor
+        let x = (event.clientX - this._cachedAbsoluteX + this.getScrollLeft()) * zoom
+        let y = (event.clientY - this._cachedAbsoluteY + this.getScrollTop()) * zoom
+        this.onClick(x, y, event.shiftKey, event.ctrlKey)
       }
     },
 
@@ -443,8 +469,11 @@ draw2d.Canvas = Class.extend(
     _handleDoubleClick: function(event) {
       this.mouseDownX = event.clientX
       this.mouseDownY = event.clientY
-      let pos = this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
-      this.onDoubleClick(pos.x, pos.y, event.shiftKey, event.ctrlKey)
+      // Cache zoom factor and inline coordinate transformation
+      let zoom = this.zoomFactor
+      let x = (event.clientX - this._cachedAbsoluteX + this.getScrollLeft()) * zoom
+      let y = (event.clientY - this._cachedAbsoluteY + this.getScrollTop()) * zoom
+      this.onDoubleClick(x, y, event.shiftKey, event.ctrlKey)
     },
 
     /**
