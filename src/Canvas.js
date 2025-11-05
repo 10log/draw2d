@@ -1231,6 +1231,88 @@ draw2d.Canvas = Class.extend(
 
 
     /**
+     * Helper method to check if a figure is in a list (blacklist/whitelist)
+     * Hoisted to class-level to avoid function allocation on every getBestFigure call
+     *
+     * @private
+     * @param {draw2d.Figure} testFigure
+     * @param {Array} list
+     * @returns {Boolean}
+     */
+    _isInList: function(testFigure, list) {
+      for (let i = 0, len = list.length; i < len; i++) {
+        let considering = list[i]
+        if (typeof considering === "function") {
+          if (testFigure instanceof considering) {
+            return true
+          }
+        } else if ((considering === testFigure) || (considering.contains && considering.contains(testFigure))) {
+          return true
+        }
+      }
+      return false
+    },
+
+    /**
+     * Helper method to recursively check children for hit test
+     * Hoisted to class-level to avoid function allocation on every getBestFigure call
+     *
+     * @private
+     * @param {draw2d.util.ArrayList} children
+     * @param {Number} x
+     * @param {Number} y
+     * @param {Function} isInBlacklist
+     * @param {Function} isInWhitelist
+     * @returns {draw2d.Figure|null}
+     */
+    _checkRecursiveHitTest: function(children, x, y, isInBlacklist, isInWhitelist) {
+      let result = null
+
+      children.each((i, e) => {
+        if (result !== null) return false // Early exit if already found
+
+        let c = e.figure
+
+        // Check children first (depth-first search)
+        let childResult = this._checkRecursiveHitTest(c.children, x, y, isInBlacklist, isInWhitelist)
+        if (childResult !== null) {
+          result = childResult
+          return false // Break the loop
+        }
+
+        // Check this figure with early exits
+        if (!c.isVisible()) return true
+        if (isInBlacklist(c)) return true
+        if (!isInWhitelist(c)) return true
+        if (!c.hitTest(x, y)) return true
+
+        result = c
+        return false // Found it, break the loop
+      })
+
+      return result
+    },
+
+    /**
+     * Helper method to get DOM index without jQuery
+     * Much faster than $(element).index()
+     *
+     * @private
+     * @param {HTMLElement} element
+     * @returns {Number}
+     */
+    _getDOMIndex: function(element) {
+      if (!element || !element.parentNode) return -1
+
+      let index = 0
+      let sibling = element
+      while ((sibling = sibling.previousSibling) != null) {
+        index++
+      }
+      return index
+    },
+
+    /**
      *
      * Returns the best figure at the location [x,y]. It is a simple hit test. Keep in mind that only visible objects
      * are returned.
@@ -1244,6 +1326,11 @@ draw2d.Canvas = Class.extend(
      * @returns {draw2d.Figure}
      **/
     getBestFigure: function (x, y, blacklist, whitelist) {
+      // TODO: Consider implementing spatial indexing (R-tree or quadtree) for canvases
+      // with >100 figures to reduce O(n) search to O(log n).
+      // Current implementation: O(n) linear search where n = total figure count
+      // This is acceptable for small-medium canvases but could be optimized for very large diagrams.
+
       if (!Array.isArray(blacklist)) {
         if (blacklist)
           blacklist = [blacklist]
@@ -1261,50 +1348,24 @@ draw2d.Canvas = Class.extend(
       let result = null
       let testFigure = null
 
+      // Use class-level helper methods to avoid function allocation overhead
+      let hasBlacklist = blacklist.length > 0
+      let hasWhitelist = whitelist.length > 0
 
-      let isInList = function (testFigure, list) {
-        for (let i = 0, len = list.length; i < len; i++) {
-          let considering = list[i]
-          if (typeof considering === "function") {
-            if (testFigure instanceof considering) {
-              return true
-            }
-          } else if ((considering === testFigure) || (considering.contains(testFigure))) {
-            return true
-          }
-        }
-        return false
-      }
-      let isInBlacklist = function (item) {
-        return isInList(item, blacklist)
-      }
-      // empty whitelist means that every kind of object is allowed
-      let isInWhitelist = whitelist.length === 0 ? function () {
-        return true
-      } : function (item) {
-        return isInList(item, whitelist)
-      }
+      // Create lightweight arrow functions that reference class methods
+      let isInBlacklist = hasBlacklist ? (item) => this._isInList(item, blacklist) : () => false
+      let isInWhitelist = hasWhitelist ? (item) => this._isInList(item, whitelist) : () => true
 
 
-      // tool method to check recursive a figure for hitTest
-      //
-      let checkRecursive = function (children) {
-        children.each(function (i, e) {
-          let c = e.figure
-          checkRecursive(c.children)
-          if (result === null && c.isVisible() && c.hitTest(x, y) && !isInBlacklist(c) && isInWhitelist(c)) {
-            result = c
-          }
-          return result === null // break the each-loop if we found an element
-        })
-      }
-
-
-      // ResizeHandles
+      // ResizeHandles - check with early exits for better performance
       //
       for (let i = 0, len = this.resizeHandles.getSize(); i < len; i++) {
         testFigure = this.resizeHandles.get(i)
-        if (testFigure.isVisible() && testFigure.hitTest(x, y) && !isInBlacklist(testFigure) && isInWhitelist(testFigure)) {
+        // Early exits: check cheapest conditions first
+        if (!testFigure.isVisible()) continue
+        if (isInBlacklist(testFigure)) continue
+        if (!isInWhitelist(testFigure)) continue
+        if (testFigure.hitTest(x, y)) {
           return testFigure
         }
       }
@@ -1313,12 +1374,15 @@ draw2d.Canvas = Class.extend(
       //
       for (let i = 0, len = this.commonPorts.getSize(); i < len; i++) {
         let port = this.commonPorts.get(i)
-        // check first a children of the figure
+        // check first a children of the figure using class method
         //
-        checkRecursive(port.children)
+        result = this._checkRecursiveHitTest(port.children, x, y, isInBlacklist, isInWhitelist)
 
-        if (result === null && port.isVisible() && port.hitTest(x, y) && !isInBlacklist(port) && isInWhitelist(port)) {
-          result = port
+        if (result === null) {
+          // Early exits for port itself
+          if (port.isVisible() && !isInBlacklist(port) && isInWhitelist(port) && port.hitTest(x, y)) {
+            result = port
+          }
         }
 
         if (result !== null) {
@@ -1328,17 +1392,21 @@ draw2d.Canvas = Class.extend(
 
 
       //  Check now the common objects.
-      //  run reverse to aware the z-oder of the figures
+      //  run reverse to aware the z-order of the figures
       for (let i = (this.figures.getSize() - 1); i >= 0; i--) {
         let figure = this.figures.get(i)
-        // check first a children of the figure
+        // check first a children of the figure using class method
         //
-        checkRecursive(figure.children)
+        result = this._checkRecursiveHitTest(figure.children, x, y, isInBlacklist, isInWhitelist)
 
-        // ...and the figure itself
+        // ...and the figure itself with early exits
         //
-        if (result === null && figure.isVisible() && figure.hitTest(x, y) && !isInBlacklist(figure) && isInWhitelist(figure)) {
-          result = figure
+        if (result === null) {
+          if (figure.isVisible() && !isInBlacklist(figure) && isInWhitelist(figure) && figure.hitTest(x, y)) {
+            result = figure
+            break
+          }
+        } else {
           break
         }
       }
@@ -1355,9 +1423,9 @@ draw2d.Canvas = Class.extend(
       let count = this.lines.getSize()
       for (let i = 0; i < count; i++) {
         let line = this.lines.get(i)
-        // check first a children of the figure
+        // check first a children of the figure using class method
         //
-        checkRecursive(line.children)
+        result = this._checkRecursiveHitTest(line.children, x, y, isInBlacklist, isInWhitelist)
 
         if (result !== null) {
           childResult = result
@@ -1365,9 +1433,10 @@ draw2d.Canvas = Class.extend(
         }
       }
 
-      let figureIndex = figureResult !== null ? $(figureResult.shape.node).index() : -1
-      let childIndex = childResult !== null ? $(childResult.shape.node).index() : -1
-      let lineIndex = lineResult !== null ? $(lineResult.shape.node).index() : -1
+      // Use native DOM method instead of jQuery for better performance
+      let figureIndex = figureResult !== null ? this._getDOMIndex(figureResult.shape.node) : -1
+      let childIndex = childResult !== null ? this._getDOMIndex(childResult.shape.node) : -1
+      let lineIndex = lineResult !== null ? this._getDOMIndex(lineResult.shape.node) : -1
       let array = [
         {i: figureIndex, f: figureResult},
         {i: childIndex, f: childResult},
