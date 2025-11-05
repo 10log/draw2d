@@ -1667,7 +1667,8 @@ draw2d.Canvas = Class.extend(
 
       for (let i = 0; i < count; i++) {
         let line = this.lines.get(i)
-        if (line.isVisible() === true && line.hitTest(x, y) === true && $.inArray(line, lineToIgnore) === -1) {
+        // Use native Array.includes() instead of $.inArray() for better performance
+        if (line.isVisible() === true && line.hitTest(x, y) === true && !lineToIgnore.includes(line)) {
           return line
         }
       }
