@@ -135,6 +135,11 @@ draw2d.Canvas = Class.extend(
       this.lineIntersectionsDirty = true
       this.intersectionCalculationScheduled = false
 
+      // Wheel event throttling for better performance
+      // Prevents excessive handler calls during rapid wheel events
+      this.lastWheelEventTime = 0
+      this.wheelThrottleMs = 16.67 // ~60fps
+
       // alternative/legacy zoom implementation
       // this.installEditPolicy( new draw2d.policy.canvas.ZoomPolicy());                  // Responsible for zooming
       this.installEditPolicy(new draw2d.policy.canvas.WheelZoomPolicy())                // Responsible for zooming with mouse wheel
@@ -203,7 +208,17 @@ draw2d.Canvas = Class.extend(
       // Important: MozMousePixelScroll is required to prevent 1px scrolling
       // in FF event if we call "e.preventDefault()"
       // Keep wheel event separate as it has different normalization needs
+      // Throttle to ~60fps to prevent excessive CPU usage during rapid wheel events
       this.html.on('MozMousePixelScroll DOMMouseScroll mousewheel', function (e) {
+        // Throttle check - skip if within throttle period
+        let currentTime = performance.now()
+        if (currentTime - _this.lastWheelEventTime < _this.wheelThrottleMs && _this.lastWheelEventTime !== 0) {
+          e.preventDefault() // Still prevent default to avoid page scroll
+          return
+        }
+
+        _this.lastWheelEventTime = currentTime
+
         let event = _this._getEvent(e)
         let pos = _this.fromDocumentToCanvasCoordinate(event.originalEvent.clientX, event.originalEvent.clientY)
 
