@@ -154,6 +154,11 @@ draw2d.Canvas = Class.extend(
       // Store for cleanup
       this._positionUpdateHandler = updatePosition
 
+      // Repaint batching for better performance
+      // Batches multiple repaint requests into single animation frame
+      this.repaintScheduled = false
+      this.linesToRepaint = new Set()
+
       // alternative/legacy zoom implementation
       // this.installEditPolicy( new draw2d.policy.canvas.ZoomPolicy());                  // Responsible for zooming
       this.installEditPolicy(new draw2d.policy.canvas.WheelZoomPolicy())                // Responsible for zooming with mouse wheel
@@ -173,9 +178,9 @@ draw2d.Canvas = Class.extend(
       this.commandStack.addEventListener(function (event) {
         if (event.isPostChangeEvent() === true) {
           _this.markIntersectionsDirty()
+          // Schedule batched repaints using requestAnimationFrame
           _this.linesToRepaintAfterDragDrop.each((i, line) => {
-            line.svgPathString = null
-            line.repaint()
+            _this.scheduleLineRepaint(line)
           })
           _this.linesToRepaintAfterDragDrop = new draw2d.util.ArrayList()
         }
@@ -591,6 +596,32 @@ draw2d.Canvas = Class.extend(
           _this.intersectionCalculationScheduled = false
         })
       }
+      return this
+    },
+
+    /**
+     * Schedule a line for repaint in the next animation frame.
+     * Batches multiple repaint requests to reduce layout thrashing.
+     *
+     * @param {draw2d.shape.basic.Line} line The line to repaint
+     * @returns {this}
+     */
+    scheduleLineRepaint: function(line) {
+      this.linesToRepaint.add(line)
+
+      if (!this.repaintScheduled) {
+        this.repaintScheduled = true
+        let _this = this
+        requestAnimationFrame(() => {
+          _this.linesToRepaint.forEach(line => {
+            line.svgPathString = null
+            line.repaint()
+          })
+          _this.linesToRepaint.clear()
+          _this.repaintScheduled = false
+        })
+      }
+
       return this
     },
 
