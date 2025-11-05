@@ -131,7 +131,7 @@ draw2d.Canvas = Class.extend(
       // INTERSECTION/CROSSING handling for connections and lines
       //
       this.linesToRepaintAfterDragDrop = new draw2d.util.ArrayList()
-      this.lineIntersections = new draw2d.util.ArrayList()
+      this.lineIntersections = [] // Use native array for better performance
       this.lineIntersectionsDirty = true
       this.intersectionCalculationScheduled = false
 
@@ -542,7 +542,7 @@ draw2d.Canvas = Class.extend(
       // INTERSECTION/CROSSING handling for connections and lines
       //
       this.linesToRepaintAfterDragDrop = new draw2d.util.ArrayList()
-      this.lineIntersections = new draw2d.util.ArrayList()
+      this.lineIntersections = [] // Use native array for better performance
 
       return this
     },
@@ -598,6 +598,9 @@ draw2d.Canvas = Class.extend(
      * Internal implementation of connection intersection calculation.
      * Only executes if lineIntersectionsDirty flag is set.
      *
+     * Uses native arrays for better performance vs ArrayList wrapper.
+     * Double loop pattern avoids O(n²) removeElementAt(0) operations.
+     *
      * @private
      */
     _calculateConnectionIntersectionImpl: function () {
@@ -605,17 +608,27 @@ draw2d.Canvas = Class.extend(
         return this
       }
 
-      this.lineIntersections = new draw2d.util.ArrayList()
-      let lines = this.getLines().clone()
-      while (lines.getSize() > 0) {
-        let l1 = lines.removeElementAt(0)
-        lines.each((ii, l2) => {
+      // Use native array instead of ArrayList for better performance
+      this.lineIntersections = []
+
+      // Get lines as array and cache length
+      let lines = this.getLines().asArray()
+      let lineCount = lines.length
+
+      // Use double loop instead of clone/removeElementAt pattern
+      // This avoids O(n²) complexity from repeated array shifts
+      for (let i = 0; i < lineCount - 1; i++) {
+        let l1 = lines[i]
+        for (let j = i + 1; j < lineCount; j++) {
+          let l2 = lines[j]
           let partInter = l1.intersection(l2)
+
           if (partInter.getSize() > 0) {
-            this.lineIntersections.add({line: l1, other: l2, intersection: partInter})
-            this.lineIntersections.add({line: l2, other: l1, intersection: partInter})
+            // Direct array push instead of ArrayList.add
+            this.lineIntersections.push({line: l1, other: l2, intersection: partInter})
+            this.lineIntersections.push({line: l2, other: l1, intersection: partInter})
           }
-        })
+        }
       }
 
       this.lineIntersectionsDirty = false
@@ -1235,19 +1248,23 @@ draw2d.Canvas = Class.extend(
      * Return all intersections draw2d.geo.Point between the given line and all other
      * lines in the canvas.
      *
+     * Uses native array iteration for better performance vs ArrayList.each
+     *
      * @param {draw2d.shape.basic.Line} line the line for the intersection test
      * @returns {draw2d.util.ArrayList}
      */
     getIntersection: function (line) {
       let result = new draw2d.util.ArrayList()
 
-      this.lineIntersections.each((i, entry) => {
+      // Use native array iteration instead of ArrayList.each
+      for (let i = 0, len = this.lineIntersections.length; i < len; i++) {
+        let entry = this.lineIntersections[i]
         if (entry.line === line) {
           entry.intersection.each((j, p) => {
             result.add({x: p.x, y: p.y, justTouching: p.justTouching, other: entry.other})
           })
         }
-      })
+      }
 
       return result
     },
