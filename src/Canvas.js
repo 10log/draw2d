@@ -187,8 +187,9 @@ draw2d.Canvas = Class.extend(
 
       this.html.bind("mousemove touchmove", function (event) {
         event = _this._getEvent(event)
-        let pos = _this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
         if (_this.mouseDown === false) {
+          // Hover mode: coordinate transformation is needed for hit testing
+          let pos = _this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
           // mouseEnter/mouseLeave events for Figures. Don't use the Raphael or DOM native functions.
           // Raphael didn't work for Rectangle with transparent fill (events only fired for the border line)
           // DOM didn't work well for lines. No eclipse area - you must hit the line exact to retrieve the event.
@@ -224,6 +225,7 @@ draw2d.Canvas = Class.extend(
             hoverFigure: _this.currentHoverFigure
           })
         } else {
+          // Drag mode: only calculate deltas, coordinate transformation only needed for event data
           let diffXAbs = (event.clientX - _this.mouseDownX) * _this.zoomFactor
           let diffYAbs = (event.clientY - _this.mouseDownY) * _this.zoomFactor
           _this.editPolicy.each(function (i, policy) {
@@ -231,6 +233,8 @@ draw2d.Canvas = Class.extend(
           })
           _this.mouseDragDiffX = diffXAbs
           _this.mouseDragDiffY = diffYAbs
+          // Transform coordinates only for event data
+          let pos = _this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
           _this.fireEvent("mousemove", {
             x: pos.x,
             y: pos.y,
