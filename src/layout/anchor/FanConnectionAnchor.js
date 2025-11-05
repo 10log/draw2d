@@ -69,10 +69,12 @@ draw2d.layout.anchor.FanConnectionAnchor = draw2d.layout.anchor.ConnectionAnchor
     //
     let s = inquiringConnection.getSource()
     let t = inquiringConnection.getTarget()
-    let lines = this.getOwner().getConnections().clone()
-    lines.grep(function (other) {
+    // Use asArray() + filter instead of clone() for read-only filtering
+    let linesArray = this.getOwner().getConnections().asArray().filter(function (other) {
       return (other.getTarget() === t && other.getSource() === s) || (other.getTarget() === s && other.getSource() === t)
     })
+    let lines = new draw2d.util.ArrayList()
+    linesArray.forEach(l => lines.add(l))
     let index = lines.indexOf(inquiringConnection) + 1
     let position = center.getPosition(reference)
     let ray

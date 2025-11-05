@@ -788,9 +788,14 @@ draw2d.Canvas = Class.extend(
     },
 
     getDropInterceptorPolicies: function () {
-      return this.editPolicy.clone().grep(function (p) {
+      // Use asArray() + filter instead of clone().grep() for read-only filtering
+      let filtered = this.editPolicy.asArray().filter(function (p) {
         return (p instanceof draw2d.policy.canvas.DropInterceptorPolicy)
       })
+      // Return as ArrayList for API compatibility
+      let result = new draw2d.util.ArrayList()
+      filtered.forEach(p => result.add(p))
+      return result
     },
 
     /**
@@ -849,14 +854,15 @@ draw2d.Canvas = Class.extend(
      */
     setDimension: function (dim, height) {
       if (typeof dim === "undefined") {
-        let widths = this.getFigures().clone().map(function (f) {
+        // Use asArray() instead of clone() for read-only map operations
+        let widths = this.getFigures().asArray().map(function (f) {
           return f.getAbsoluteX() + f.getWidth()
         })
-        let heights = this.getFigures().clone().map(function (f) {
+        let heights = this.getFigures().asArray().map(function (f) {
           return f.getAbsoluteY() + f.getHeight()
         })
-        this.initialHeight = Math.max(...heights.asArray())
-        this.initialWidth = Math.max(...widths.asArray())
+        this.initialHeight = Math.max(...heights)
+        this.initialWidth = Math.max(...widths)
       } else if (dim instanceof draw2d.geo.Rectangle) {
         this.initialWidth = dim.w
         this.initialHeight = dim.h

@@ -46,7 +46,8 @@ draw2d.command.CommandCollection = draw2d.command.Command.extend(
     // return a common label if all commands have the same label.
     //
     if (this.commands.getSize() > 1) {
-      let labels = this.commands.clone().map(function (e) {
+      // Use asArray() instead of clone() for read-only map operation
+      let labels = this.commands.asArray().map(function (e) {
         return e.getLabel()
       })
       labels.unique()

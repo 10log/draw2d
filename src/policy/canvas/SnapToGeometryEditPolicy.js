@@ -291,14 +291,17 @@ draw2d.policy.canvas.SnapToGeometryEditPolicy = draw2d.policy.canvas.SnapToEditP
       this.vline.remove()
     }
 
-    let figures = this.canvas.getFigures().clone()
-    figures.removeAll(this.canvas.getSelection().getAll(true))
-    figures.map(function (figure) {
+    // Use asArray() instead of clone() for read-only operations
+    let figuresArray = this.canvas.getFigures().asArray()
+    let selection = this.canvas.getSelection().getAll(true).asArray()
+    let filtered = figuresArray.filter(f => !selection.includes(f))
+    let bboxes = filtered.map(function (figure) {
       return figure.getBoundingBox()
-    })
-    figures.grep(function (bbox) {
+    }).filter(function (bbox) {
       return (Math.abs(bbox.x - x) <= 1) || (Math.abs(bbox.getRight() - x) <= 1)
     })
+    let figures = new draw2d.util.ArrayList()
+    bboxes.forEach(b => figures.add(b))
 
     // return silently if no figure bounding box is left
     //
@@ -361,14 +364,17 @@ draw2d.policy.canvas.SnapToGeometryEditPolicy = draw2d.policy.canvas.SnapToEditP
       this.hline.remove()
     }
 
-    let figures = this.canvas.getFigures().clone()
-    figures.removeAll(this.canvas.getSelection().getAll(true))
-    figures.map(function (figure) {
+    // Use asArray() instead of clone() for read-only operations
+    let figuresArray = this.canvas.getFigures().asArray()
+    let selection = this.canvas.getSelection().getAll(true).asArray()
+    let filtered = figuresArray.filter(f => !selection.includes(f))
+    let bboxes = filtered.map(function (figure) {
       return figure.getBoundingBox()
-    })
-    figures.grep(function (bbox) {
+    }).filter(function (bbox) {
       return (Math.abs(bbox.y - y) <= 1) || (Math.abs(bbox.getBottom() - y) <= 1)
     })
+    let figures = new draw2d.util.ArrayList()
+    bboxes.forEach(b => figures.add(b))
 
     // return silently if no figure bounding box is left
     //

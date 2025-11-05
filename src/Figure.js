@@ -1008,7 +1008,12 @@ draw2d.Figure = Class.extend(
      * @returns {draw2d.util.ArrayList}
      */
     getChildren: function () {
-      return this.children.clone().map( e => e.figure)
+      // Use asArray() instead of clone() for read-only map operation
+      let figures = this.children.asArray().map( e => e.figure)
+      // Return as ArrayList for API compatibility
+      let result = new draw2d.util.ArrayList()
+      figures.forEach(f => result.add(f))
+      return result
     },
 
 

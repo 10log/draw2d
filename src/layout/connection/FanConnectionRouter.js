@@ -99,8 +99,12 @@ draw2d.layout.connection.FanConnectionRouter = draw2d.layout.connection.DirectRo
    * @param {Boolean} routingHints.destMoved is true if the destination location has changed
    */
   route: function (conn, routingHints) {
-    let lines = conn.getSource().getConnections().clone()
-    lines.grep( other => other.getTarget() === conn.getTarget() || other.getSource() === conn.getTarget())
+    // Use asArray() + filter instead of clone().grep() for read-only filtering
+    let linesArray = conn.getSource().getConnections().asArray().filter(other => {
+      return other.getTarget() === conn.getTarget() || other.getSource() === conn.getTarget()
+    })
+    let lines = new draw2d.util.ArrayList()
+    linesArray.forEach(l => lines.add(l))
 
     if (lines.getSize() > 1) {
       this.routeCollision(conn, lines.indexOf(conn))
