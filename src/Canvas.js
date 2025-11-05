@@ -132,6 +132,8 @@ draw2d.Canvas = Class.extend(
       //
       this.linesToRepaintAfterDragDrop = new draw2d.util.ArrayList()
       this.lineIntersections = new draw2d.util.ArrayList()
+      this.lineIntersectionsDirty = true
+      this.intersectionCalculationScheduled = false
 
       // alternative/legacy zoom implementation
       // this.installEditPolicy( new draw2d.policy.canvas.ZoomPolicy());                  // Responsible for zooming
@@ -147,10 +149,11 @@ draw2d.Canvas = Class.extend(
       )
 
       // Calculate all intersection between the different lines
+      // Use markIntersectionsDirty to defer calculation and avoid blocking UI
       //
       this.commandStack.addEventListener(function (event) {
         if (event.isPostChangeEvent() === true) {
-          _this.calculateConnectionIntersection()
+          _this.markIntersectionsDirty()
           _this.linesToRepaintAfterDragDrop.each((i, line) => {
             line.svgPathString = null
             line.repaint()
@@ -173,7 +176,7 @@ draw2d.Canvas = Class.extend(
         }
 
         event = _this._getEvent(event)
-        _this.calculateConnectionIntersection()
+        _this.markIntersectionsDirty()
 
         _this.mouseDown = false
         let pos = _this.fromDocumentToCanvasCoordinate(event.clientX, event.clientY)
@@ -454,13 +457,39 @@ draw2d.Canvas = Class.extend(
     },
 
     /**
+     * Mark line intersections as dirty and schedule recalculation for next animation frame.
+     * This defers the expensive O(n²) calculation to avoid blocking the UI.
      *
-     * Calculate all connection intersection of the canvas.
-     * Required for "bridging" or "crossing decoration"
+     * Multiple calls within the same frame are coalesced into a single calculation,
+     * improving performance during rapid operations (drag, undo/redo, etc).
      *
      * @private
      */
-    calculateConnectionIntersection: function () {
+    markIntersectionsDirty: function() {
+      this.lineIntersectionsDirty = true
+
+      // Schedule calculation for next animation frame if not already scheduled
+      if (!this.intersectionCalculationScheduled && this.lines.getSize() > 0) {
+        this.intersectionCalculationScheduled = true
+        let _this = this
+        requestAnimationFrame(() => {
+          _this._calculateConnectionIntersectionImpl()
+          _this.intersectionCalculationScheduled = false
+        })
+      }
+      return this
+    },
+
+    /**
+     * Internal implementation of connection intersection calculation.
+     * Only executes if lineIntersectionsDirty flag is set.
+     *
+     * @private
+     */
+    _calculateConnectionIntersectionImpl: function () {
+      if (!this.lineIntersectionsDirty) {
+        return this
+      }
 
       this.lineIntersections = new draw2d.util.ArrayList()
       let lines = this.getLines().clone()
@@ -475,7 +504,22 @@ draw2d.Canvas = Class.extend(
         })
       }
 
+      this.lineIntersectionsDirty = false
       return this
+    },
+
+    /**
+     *
+     * Calculate all connection intersection of the canvas.
+     * Required for "bridging" or "crossing decoration"
+     *
+     * Synchronous version for backward compatibility and critical paths.
+     * For non-critical paths, prefer markIntersectionsDirty() for better performance.
+     *
+     * @private
+     */
+    calculateConnectionIntersection: function () {
+      return this._calculateConnectionIntersectionImpl()
     },
 
 
@@ -925,7 +969,7 @@ draw2d.Canvas = Class.extend(
       // this is only required if the used router requires the crossing information
       // of the connections
       if (figure instanceof draw2d.shape.basic.PolyLine) {
-        this.calculateConnectionIntersection()
+        this.markIntersectionsDirty()
         this.linesToRepaintAfterDragDrop.each((i, line) => {
           line.svgPathString = null
           line.repaint()
