@@ -85,6 +85,10 @@ draw2d.policy.canvas.SingleSelectionPolicy = draw2d.policy.canvas.SelectionPolic
         canDragStart = figure.onDragStart(x - figure.getAbsoluteX(), y - figure.getAbsoluteY(), shiftKey, ctrlKey)
         // Element send a veto about the drag&drop operation
         this.mouseDraggingElement = canDragStart === false ? null : figure
+      } else {
+        // IMPORTANT: Reset mouseDraggingElement when clicking on empty canvas
+        // Otherwise it retains the previous figure and prevents canvas panning
+        this.mouseDraggingElement = null
       }
 
       this.mouseDownElement = figure

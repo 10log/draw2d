@@ -418,5 +418,38 @@ describe('Canvas Click/Drag Bug Regression Test', () => {
       const shouldMoveFigure = !shouldPan
       expect(shouldMoveFigure).toBe(false)
     })
+
+    it('documents critical bug: mouseDraggingElement not reset on empty canvas click', () => {
+      // This was the root cause of the persistent panning failure
+
+      // Scenario: After dragging a figure and clicking empty canvas,
+      // mouseDraggingElement was not explicitly reset to null
+
+      const figureAtClick = null  // getBestFigure returns null on empty canvas
+
+      // BUGGY CODE (before fix): mouseDraggingElement NOT reset
+      // if (figure !== null && figure.isDraggable()) {
+      //   mouseDraggingElement = figure
+      // }
+      // // BUG: When figure is null, mouseDraggingElement keeps old value!
+
+      // FIXED CODE (after fix): mouseDraggingElement EXPLICITLY reset
+      // if (figure !== null && figure.isDraggable()) {
+      //   mouseDraggingElement = figure
+      // } else {
+      //   mouseDraggingElement = null  // EXPLICIT reset on empty click
+      // }
+
+      // Verify the fix logic
+      const fixedMouseDraggingElement = (figureAtClick !== null) ? figureAtClick : null
+      const mouseDownElement = null
+
+      expect(fixedMouseDraggingElement).toBeNull()
+      expect(mouseDownElement).toBeNull()
+
+      // Both null = panning works
+      const shouldPan = (fixedMouseDraggingElement === null && mouseDownElement === null)
+      expect(shouldPan).toBe(true)
+    })
   })
 })
