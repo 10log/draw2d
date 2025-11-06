@@ -38,17 +38,12 @@ draw2d.policy.canvas.PanningSelectionPolicy = draw2d.policy.canvas.SingleSelecti
     this._super(canvas, dx, dy, dx2, dy2, shiftKey, ctrlKey)
 
     if (this.mouseDraggingElement === null && this.mouseDownElement === null) {
-
-      // check if we are dragging a port. This isn't reported by the selection handler anymore
-      //
-      let p = canvas.fromDocumentToCanvasCoordinate(canvas.mouseDownX + (dx / canvas.zoomFactor), canvas.mouseDownY + (dy / canvas.zoomFactor))
-      let figure = canvas.getBestFigure(p.x, p.y)
-
-      if (figure === null) {
-        let area = canvas.getScrollArea()
-        area.scrollTop(area.scrollTop() - dy2)
-        area.scrollLeft(area.scrollLeft() - dx2)
-      }
+      // When both are null, it means the user clicked on empty canvas
+      // In this case, we should ALWAYS pan the canvas, not re-query for figures
+      // at the current drag position (which would find figures under the cursor)
+      let area = canvas.getScrollArea()
+      area.scrollTop(area.scrollTop() - dy2)
+      area.scrollLeft(area.scrollLeft() - dx2)
     }
   }
 })
